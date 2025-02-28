@@ -206,7 +206,7 @@ function App() {
         <header className="mb-8 text-center relative">
           <Link to="/" className="absolute left-0 top-2 text-indigo-600 hover:text-indigo-800 transition-colors flex items-center">
             <ArrowLeft size={20} className="mr-1" />
-            <span>Back to Home</span>
+            <span>Back</span>
           </Link>
           <h1 className="text-4xl font-bold text-indigo-800 mb-2">Study Starter</h1>
           <p className="text-lg text-indigo-600">Overcome procrastination and start studying now!</p>
