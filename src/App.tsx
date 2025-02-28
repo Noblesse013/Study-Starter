@@ -209,7 +209,6 @@ function App() {
             <span>Back</span>
           </Link>
           <h1 className="text-4xl font-bold text-indigo-800 mb-2">Study Starter</h1>
-          <p className="text-lg text-indigo-600">Overcome procrastination and start studying now!</p>
           <div className="mt-4 p-4 bg-white rounded-lg shadow-md">
             <p className="italic text-gray-700">{motivationalQuote}</p>
           </div>
