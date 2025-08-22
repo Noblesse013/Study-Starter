@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Clock, Play, PlusCircle, Save, Trash2, Trophy, Shuffle, ArrowLeft } from 'lucide-react';
+import { BookOpen, Clock, Play, PlusCircle, Save, Trash2, Trophy, Shuffle, ArrowLeft, Timer, NotebookPen, Layers, HelpCircle, Bell, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Pomodoro from './features/Pomodoro';
+import Notes from './features/Notes';
+import Flashcards from './features/Flashcards';
+import Quizzes from './features/Quizzes';
+import Reminders from './features/Reminders';
 
 // Define types for our data structures
 interface Course {
@@ -19,6 +24,15 @@ interface StudySession {
 }
 
 function App() {
+  const [activeTab, setActiveTab] = useState<'Dashboard' | 'Pomodoro' | 'Notes' | 'Flashcards' | 'Quizzes' | 'Reminders' | 'Profile'>(() => {
+    const saved = localStorage.getItem('activeTab');
+    return (saved as any) || 'Dashboard';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+
   // State for course form
   const [courseCode, setCourseCode] = useState('');
   const [courseTopic, setCourseTopic] = useState('');
@@ -36,6 +50,16 @@ function App() {
   
   // State for active study session
   const [activeSession, setActiveSession] = useState<StudySession | null>(null);
+
+  // Gamification: XP and simple level calc
+  const [xp, setXp] = useState<number>(() => {
+    const saved = localStorage.getItem('xp');
+    return saved ? Number(saved) : 0;
+  });
+  const level = Math.floor(xp / 100) + 1; // 100 XP per level
+  useEffect(() => {
+    localStorage.setItem('xp', String(xp));
+  }, [xp]);
   
   // State for selected course from shuffle
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
@@ -144,6 +168,27 @@ function App() {
     setStudySessions([...studySessions, completedSession]);
     setActiveSession(null);
   };
+
+  // Award XP helper
+  const awardXp = (amount: number) => setXp(prev => prev + amount);
+  const handlePomodoroWorkComplete = () => {
+    // Award XP for completing a focus interval
+    awardXp(25);
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Focus complete', { body: 'Great job! +25 XP' });
+      }
+    } catch {}
+  };
+
+  // Basic badges
+  const badges = [
+    { id: 'starter', label: 'Starter', earned: xp >= 10 },
+    { id: 'focused', label: 'Focused 100', earned: xp >= 100 },
+    { id: 'marathon', label: 'Marathon 500', earned: xp >= 500 },
+    { id: 'session-5', label: '5 Sessions', earned: studySessions.length >= 5 },
+    { id: 'session-20', label: '20 Sessions', earned: studySessions.length >= 20 }
+  ];
   
   // Function to shuffle and select a random course
   const handleShuffleCourses = () => {
@@ -209,14 +254,107 @@ function App() {
             <span>Back</span>
           </Link>
           <h1 className="text-4xl font-bold text-indigo-800 mb-2">Study Starter</h1>
-          <div className="mt-4 p-4 bg-white rounded-lg shadow-md">
+          <div className="mt-4 p-4 glass elevate rounded-lg">
             <p className="italic text-gray-700">{motivationalQuote}</p>
           </div>
         </header>
-        
+        {/* Tabs */}
+        <div className="mb-6 overflow-x-auto">
+          <div className="inline-flex glass elevate rounded-lg">
+            {[
+              { key: 'Dashboard', icon: BookOpen },
+              { key: 'Pomodoro', icon: Timer },
+              { key: 'Notes', icon: NotebookPen },
+              { key: 'Flashcards', icon: Layers },
+              { key: 'Quizzes', icon: HelpCircle },
+              { key: 'Reminders', icon: Bell },
+              { key: 'Profile', icon: User }
+            ].map(({ key, icon: Icon }: any) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`px-4 py-2 flex items-center border-r last:border-r-0 rounded-lg md:rounded-none md:first:rounded-l-lg md:last:rounded-r-lg ${
+                  activeTab === key ? 'bg-indigo-600 text-white' : 'text-indigo-700 hover:bg-indigo-50'
+                }`}
+              >
+                <Icon size={18} className="mr-2" />
+                {key}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Profile Summary row when not on Profile tab */}
+        {activeTab !== 'Profile' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+            <div className="glass elevate rounded-lg p-4">
+              <h3 className="text-sm text-gray-500">Total Study Time</h3>
+              <p className="text-2xl font-semibold text-indigo-700 mt-1">{
+                formatDuration(studySessions.reduce((t, s) => t + s.duration, 0))
+              }</p>
+            </div>
+            <div className="glass elevate rounded-lg p-4">
+              <h3 className="text-sm text-gray-500">Sessions</h3>
+              <p className="text-2xl font-semibold text-indigo-700 mt-1">{studySessions.length}</p>
+            </div>
+            <div className="glass elevate rounded-lg p-4">
+              <h3 className="text-sm text-gray-500">Level / XP</h3>
+              <p className="text-2xl font-semibold text-indigo-700 mt-1">Lv {level} · {xp} XP</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Pomodoro' && (
+          <div className="grid grid-cols-1 gap-8">
+            <div className="glass elevate rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
+                <Timer className="mr-2" size={24} />
+                Pomodoro Timer
+              </h2>
+              <Pomodoro onWorkComplete={handlePomodoroWorkComplete} />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Profile' && (
+          <div className="grid grid-cols-1 gap-8">
+            <div className="glass elevate rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
+                <User className="mr-2" size={24} />
+                Your Profile
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-4 rounded-lg bg-indigo-50">
+                  <p className="text-sm text-indigo-700">Level</p>
+                  <p className="text-3xl font-bold text-indigo-800">{level}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-purple-50">
+                  <p className="text-sm text-purple-700">XP</p>
+                  <p className="text-3xl font-bold text-purple-800">{xp}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-green-50">
+                  <p className="text-sm text-green-700">Sessions</p>
+                  <p className="text-3xl font-bold text-green-800">{studySessions.length}</p>
+                </div>
+              </div>
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-indigo-800 mb-3">Badges</h3>
+                <div className="flex flex-wrap gap-3">
+                  {badges.map(b => (
+                    <span key={b.id} className={`px-3 py-1 rounded-full text-sm ${b.earned ? 'bg-yellow-200 text-yellow-900' : 'bg-gray-200 text-gray-500'}`}>
+                      {b.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Dashboard' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Course Management Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="glass elevate rounded-lg p-6">
             <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
               <BookOpen className="mr-2" size={24} />
               Add Course
@@ -305,9 +443,9 @@ function App() {
               )}
             </div>
           </div>
-          
+
           {/* Course List Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="glass elevate rounded-lg p-6">
             <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
               <BookOpen className="mr-2" size={24} />
               Your Courses
@@ -364,9 +502,9 @@ function App() {
               </ul>
             )}
           </div>
-          
+
           {/* Active Session & History Section */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="glass elevate rounded-lg p-6">
             <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
               <Clock className="mr-2" size={24} />
               Study Session
@@ -417,6 +555,55 @@ function App() {
             )}
           </div>
         </div>
+        )}
+
+        {activeTab === 'Notes' && (
+          <div className="grid grid-cols-1 gap-8">
+            <div className="glass elevate rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
+                <NotebookPen className="mr-2" size={24} />
+                Notes
+              </h2>
+              <Notes courses={courses} awardXp={awardXp} />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Flashcards' && (
+          <div className="grid grid-cols-1 gap-8">
+            <div className="glass elevate rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
+                <Layers className="mr-2" size={24} />
+                Flashcards
+              </h2>
+              <Flashcards courses={courses} awardXp={awardXp} />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Quizzes' && (
+          <div className="grid grid-cols-1 gap-8">
+            <div className="glass elevate rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
+                <HelpCircle className="mr-2" size={24} />
+                Quizzes
+              </h2>
+              <Quizzes courses={courses} awardXp={awardXp} />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'Reminders' && (
+          <div className="grid grid-cols-1 gap-8">
+            <div className="glass elevate rounded-lg p-6">
+              <h2 className="text-2xl font-semibold text-indigo-700 mb-4 flex items-center">
+                <Bell className="mr-2" size={24} />
+                Reminders
+              </h2>
+              <Reminders />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
